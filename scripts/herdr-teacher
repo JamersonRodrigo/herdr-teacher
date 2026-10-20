@@ -1,12 +1,40 @@
 #!/bin/sh
-# herdr-teacher — runs the herdr-soho engine with this skill's roles and config.
-script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P) || exit 2
+skill_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P) || exit 2
 
-if command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] 2>/dev/null; then
-  exec node "$script_dir/herdr-teacher.mjs" "$@"
+if [ -z "${HERDR_TEACHER_SKILL_DIR:-}" ]; then
+  export HERDR_TEACHER_SKILL_DIR="$skill_dir"
 fi
-if command -v bun >/dev/null 2>&1; then
-  exec bun "$script_dir/herdr-teacher.mjs" "$@"
+
+if [ -n "${HERDR_TEACHER_BIN:-}" ]; then
+  if [ -x "$HERDR_TEACHER_BIN" ]; then
+    exec "$HERDR_TEACHER_BIN" "$@"
+  fi
+  echo "herdr-teacher: HERDR_TEACHER_BIN is not executable: $HERDR_TEACHER_BIN" >&2
+  exit 2
 fi
-echo "herdr-teacher: Node.js 20+ or Bun is required" >&2
-exit 2
+
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    bin="$skill_dir/bin/herdr-teacher.exe"
+    ;;
+  *)
+    bin="$skill_dir/bin/herdr-teacher"
+    ;;
+esac
+
+if command -v go >/dev/null 2>&1; then
+  needs_build=0
+  if [ ! -f "$bin" ]; then
+    needs_build=1
+  elif [ -n "$(find "$skill_dir/cmd" "$skill_dir/internal" "$skill_dir/go.mod" -newer "$bin" 2>/dev/null)" ]; then
+    needs_build=1
+  fi
+  if [ "$needs_build" -eq 1 ]; then
+    (cd "$skill_dir" && go build -o "$bin" ./cmd/herdr-teacher) || exit 2
+  fi
+elif [ ! -f "$bin" ]; then
+  echo "herdr-teacher: Go 1.25+ is required to build bin/herdr-teacher (or set HERDR_TEACHER_BIN)" >&2
+  exit 2
+fi
+
+exec "$bin" "$@"

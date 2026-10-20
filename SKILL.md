@@ -6,7 +6,7 @@ description: >
   acompanhamento de evolução. O agente que roda a skill é o professor
   (orquestrador); pesquisador, criador de conteúdo, revisor adversário,
   advogado do diabo, avaliador e analista de cenários rodam como CLIs em
-  painéis irmãos, sobre o motor do herdr-soho. Só o criador escreve arquivos
+  painéis irmãos, sobre o motor soho (ou o antigo herdr-soho). Só o criador escreve arquivos
   (aula, tabelas, Mermaid, Excalidraw, slides Marp, exercícios, por tópico);
   o revisor roda isolado, em outra família de modelo, e precisa admitir por
   escrito quando não acha falhas. Use dentro do Herdr (HERDR_ENV=1) quando o
@@ -25,7 +25,7 @@ O agente que carrega esta skill vira o **professor**: ensina na conversa,
 planeja as aulas, escreve os briefs, integra os relatórios e é dono do git.
 Os outros seis papéis são arquivos em `roles/` e rodam como CLIs de verdade em
 painéis do Herdr. O transporte (spawn, dispatch, wait, lanes, checagem de
-família, roster) é o **motor do herdr-soho**, sem cópia: o wrapper
+família, roster) é o **motor soho (ou o antigo herdr-soho)**, sem cópia: o wrapper
 `scripts/herdr-teacher` aponta o motor para os papéis e a config desta skill e
 acrescenta as travas de segregação.
 
@@ -38,10 +38,17 @@ Leia antes da primeira aula.
    não escreve aula, exercício, diagrama nem o `PROGRESSO.md`; ele entrega o
    texto no brief e o criador grava.
 2. **O revisor nunca roda no mesmo agente, painel ou processo do pesquisador
-   ou do criador.** As lanes garantem painéis separados; o wrapper recusa
-   `lanes=off` e `dispatch <outro-painel> --role reviewer` (exit 5); o motor
+   ou do criador.** As lanes garantem painéis separados; o motor
    recusa revisor da mesma família de modelo que o criador
    (`family_check=strict`, exit 5). Nunca passe `--allow-same-family`.
+   Travas completas do wrapper:
+   - `spawn|run professor|planner` → 12 (o professor é você; ensine nesta sessão);
+   - `lanes=off` → 5;
+   - papel de revisor fora do painel `revisao` → 5;
+   - `content-creator`/`researcher` no painel de revisão → 5;
+   - `spawn reviewer --name` → 5;
+   - `doctor --fix`, `setup`, `config set` → 2 (regravariam os arquivos do motor com as lanes do teacher).
+   A trava lê o agente e o papel mesmo quando as flags vêm antes do agente.
 3. **Nenhum material chega ao aluno como "pronto" sem `verdict: pass` do
    revisor.** Um item `partial` na revisão não é aprovação: resolva ou diga ao
    aluno o que ficou sem verificar.
@@ -61,20 +68,21 @@ T=<caminho-desta-skill>/scripts/herdr-teacher   # Windows: <caminho>\scripts\her
 test "${HERDR_ENV:-}" = 1 && command -v herdr >/dev/null && $T teacher-env >/dev/null && $T init
 ```
 
-- Fora do Herdr, ou sem Node.js 20+ / Bun: diga isso e pare.
-- O motor é o herdr-soho, procurado em `$HERDR_TEACHER_SOHO_DIR`, na pasta
-  irmã `../herdr-soho`, em `~/.agents/skills/herdr-soho` e em
-  `~/.claude/skills/herdr-soho`. Sem ele, o wrapper sai com exit 2.
-- Para a sintaxe de cada comando, a autoridade é o `SKILL.md` do herdr-soho;
-  esta skill só muda papéis, lanes e travas.
+- Fora do Herdr, ou sem Go 1.25+ no PATH, ou um `bin/herdr-teacher` já compilado, ou `HERDR_TEACHER_BIN`: diga isso e pare.
+- O motor é detectado na seguinte ordem (o primeiro que existir):
+  1. `HERDR_TEACHER_SOHO_BIN` — um binário Go do soho; variáveis `SOHO_*` (se `HERDR_TEACHER_SOHO_BIN` estiver definida e não apontar para um arquivo, o wrapper sai com exit 2 em vez de seguir a lista).
+  2. `soho` no PATH — o binário Go atual do soho (https://github.com/djalmajr/soho); variáveis `SOHO_*`.
+  3. `HERDR_SOHO_BIN` — o binário Go antigo `herdr-soho`; variáveis `HERDR_SOHO_*` (`HERDR_SOHO_BIN` que não aponta para um arquivo é ignorada e a busca continua).
+  4. A skill antiga `herdr-soho` (motor JavaScript, precisa de `node` ou `bun` no PATH), procurada em `$HERDR_TEACHER_SOHO_DIR`, na pasta irmã `../herdr-soho`, em `~/.agents/skills/herdr-soho` e em `~/.claude/skills/herdr-soho`; variáveis `HERDR_SOHO_*`.
+  Sem nenhum deles, o wrapper sai com exit 2. `teacher-env` mostra onde estão a skill, o motor e os papéis, qual motor foi achado (linhas `engine:` e `prefix:`) e funciona mesmo sem motor.
+- Para a sintaxe de cada comando, a autoridade é o `SKILL.md` do motor em uso (o `skills/soho/SKILL.md` do soho, ou o da skill `herdr-soho` antiga); esta skill só muda papéis, lanes e travas.
 - `init` dá o nome `professor` a este agente. Logo depois, rode
   `$T title "<matéria>"`.
-- O `doctor` (dentro do `init`) avisa sobre `lane.build.*`/`lane.review.*` do
-  seu config do herdr-soho e sobre a falta do bloco do herdr-soho no
-  AGENTS.md. Ignore os dois avisos: são do herdr-soho, não do teacher.
-  **Nunca rode `doctor --fix`, `setup` nem `config set` pelo wrapper** — eles
-  regravariam os arquivos do herdr-soho com as lanes do teacher. O wrapper
-  recusa os três.
+- O `doctor` (dentro do `init`) pode emitir avisos que podem ser ignorados aqui, por motor:
+  - os dois motores: falta o bloco do motor no `AGENTS.md`/`CLAUDE.md` e faltam os hooks em `.claude/settings.json` (o teacher não usa o `setup`);
+  - soho em Go: `former state dir … .herdr-soho is no longer used` e `former user config dir …\herdr-soho is still there` (são do próprio soho, da migração herdr-soho → soho);
+  - herdr-soho antigo: `lane.build.*` / `lane.review.*` "sets a lane that does not exist" (as lanes do teacher são outras).
+  **Nunca rode `doctor --fix`, `setup` nem `config set` pelo wrapper** — eles continuam bloqueados pelo wrapper (exit 2) porque regravariam os arquivos do motor com as lanes do teacher.
 
 ## Primeira vez
 
@@ -220,10 +228,9 @@ responda a partir do texto.
 
 ## Cota e falhas
 
-Os códigos de saída são os do herdr-soho. Os que mais aparecem aqui:
+Os códigos de saída são os do motor soho (ou o antigo herdr-soho). Os que mais aparecem aqui:
 `5` revisor da mesma família (troque a família do revisor, nunca force) ou
 trava de segregação do wrapper; `7` worker bloqueado ou fazendo pergunta
 (leia a tela em `dialog`/`question` e responda no próximo brief); `11` cota —
 pergunte ao aluno se troca o assistente, espera ou pausa; `12` tentativa de
-abrir o professor. Detalhes: `SKILL.md` e `references/troubleshooting.md` do
-herdr-soho.
+abrir o professor. Detalhes: o `SKILL.md` do motor em uso (o `skills/soho/SKILL.md` do soho, ou o da skill `herdr-soho` antiga) e `references/troubleshooting.md`.

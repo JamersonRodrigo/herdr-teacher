@@ -1,19 +1,21 @@
 # herdr-teacher — config padrão da skill.
 #
-# Formato igual ao do herdr-soho: key=value, uma por linha, `#` comenta.
+# Formato igual ao do soho: key=value, uma por linha, `#` comenta.
 # Camadas (a de baixo vence a de cima):
 #   1. este arquivo (config.defaults da skill)
-#   2. usuário:  %APPDATA%\herdr-teacher\config   (Windows)
-#                ~/.config/herdr-teacher/config   (Linux/macOS; ou $XDG_CONFIG_HOME)
+#   2. usuário:  $XDG_CONFIG_HOME/herdr-teacher/config quando definido (em qualquer SO);
+#                senão %APPDATA%\herdr-teacher\config (Windows) ou ~/.config/herdr-teacher/config
 #   3. projeto:  <repo>/.agents/herdr-teacher.conf
-#   4. variável de ambiente HERDR_SOHO_<KEY> já definida (vence tudo isto)
+#   4. variável de ambiente <prefixo><KEY> já definida (sendo o prefixo
+#      SOHO_ com o soho em Go e HERDR_SOHO_ com o herdr-soho antigo; vence tudo isto)
 #   5. flags de comando (vencem tudo)
 #
-# O wrapper scripts/herdr-teacher exporta cada chave como HERDR_SOHO_<KEY>
-# para o motor herdr-soho. Por isso estas chaves vencem o config do herdr-soho
-# (%APPDATA%\herdr-soho\config) — mas só as chaves listadas aqui; o resto
+# O wrapper scripts/herdr-teacher exporta cada chave como <prefixo><KEY>
+# (prefixo SOHO_ no soho em Go ou HERDR_SOHO_ no herdr-soho antigo) para o
+# motor. Por isso estas chaves vencem o config do motor (%APPDATA%\soho\config
+# ou %APPDATA%\herdr-soho\config) — mas só as chaves listadas aqui; o resto
 # (approvals, settled_grace, worker_context…) continua vindo do seu config
-# do herdr-soho. Chaves `teacher.*` são só do wrapper/professor e nunca vão
+# do motor. Chaves `teacher.*` são só do wrapper/professor e nunca vão
 # para o motor. Confira o efetivo com: scripts/herdr-teacher teacher-env
 
 # ---------------------------------------------------------------------------
@@ -65,6 +67,11 @@ lane.revisao.effort=high
 # ---------------------------------------------------------------------------
 # Time e estado
 # ---------------------------------------------------------------------------
+
+# Painéis por aba, contando o professor: 4 = professor + as 3 lanes.
+# Também silencia o aviso "panes is not set" do doctor do soho em Go,
+# que sugeriria um `doctor --fix` (bloqueado pelo wrapper).
+panes=4
 
 # Nome do agente que roda a skill (o professor), no sidebar do Herdr.
 orchestrator_name=professor
