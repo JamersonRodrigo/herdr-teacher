@@ -1,0 +1,12 @@
+#!/bin/sh
+# herdr-teacher — runs the herdr-soho engine with this skill's roles and config.
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P) || exit 2
+
+if command -v node >/dev/null 2>&1 && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 20 ] 2>/dev/null; then
+  exec node "$script_dir/herdr-teacher.mjs" "$@"
+fi
+if command -v bun >/dev/null 2>&1; then
+  exec bun "$script_dir/herdr-teacher.mjs" "$@"
+fi
+echo "herdr-teacher: Node.js 20+ or Bun is required" >&2
+exit 2

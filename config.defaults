@@ -1,30 +1,96 @@
-# herdr-teacher — config padrão da skill
-# Segregação estrita: o reviewer roda em família diferente (claude) dos workers criadores/pesquisadores (agy)
+# herdr-teacher — config padrão da skill.
+#
+# Formato igual ao do herdr-soho: key=value, uma por linha, `#` comenta.
+# Camadas (a de baixo vence a de cima):
+#   1. este arquivo (config.defaults da skill)
+#   2. usuário:  %APPDATA%\herdr-teacher\config   (Windows)
+#                ~/.config/herdr-teacher/config   (Linux/macOS; ou $XDG_CONFIG_HOME)
+#   3. projeto:  <repo>/.agents/herdr-teacher.conf
+#   4. variável de ambiente HERDR_SOHO_<KEY> já definida (vence tudo isto)
+#   5. flags de comando (vencem tudo)
+#
+# O wrapper scripts/herdr-teacher exporta cada chave como HERDR_SOHO_<KEY>
+# para o motor herdr-soho. Por isso estas chaves vencem o config do herdr-soho
+# (%APPDATA%\herdr-soho\config) — mas só as chaves listadas aqui; o resto
+# (approvals, settled_grace, worker_context…) continua vindo do seu config
+# do herdr-soho. Chaves `teacher.*` são só do wrapper/professor e nunca vão
+# para o motor. Confira o efetivo com: scripts/herdr-teacher teacher-env
 
-role.content-creator.kind=agy
-role.content-creator.model=gemini
-role.content-creator.effort=high
+# ---------------------------------------------------------------------------
+# Segregação (não mude sem entender)
+# ---------------------------------------------------------------------------
 
-role.researcher.kind=agy
-role.researcher.model=gemini
-role.researcher.effort=high
+# Lanes são obrigatórias: são elas que garantem que o revisor nunca reaproveita
+# o painel do pesquisador ou do criador. O wrapper recusa lanes=off.
+lanes=on
 
-role.scenario-analyst.kind=agy
-role.scenario-analyst.model=gemini
-role.scenario-analyst.effort=high
+# Revisor de família de modelo diferente da do criador de conteúdo (o único
+# papel com mode: edit). strict = o dispatch do revisor falha (exit 5) se a
+# família coincidir com a de qualquer agente que editou.
+family_check=strict
 
-# Reviewer independente: NUNCA divide processo com content-creator nem researcher
-role.reviewer.kind=claude
-role.reviewer.model=claude-sonnet-5-5
-role.reviewer.effort=high
+# Três lanes = professor (este painel) + 3 painéis = 4 no total.
+#
+#   pesquisa  — researcher, debater, scenario-analyst, evaluator (só leitura)
+#   criacao   — content-creator (o único que cria arquivos)
+#   revisao   — reviewer (sozinho, isolado)
+#
+# Famílias padrão, no mesmo padrão do herdr-agents/herdr-soho já configurado:
+# workers no agy/Gemini (google) e revisor no Claude Sonnet (anthropic).
+lane.pesquisa.roles=researcher,debater,scenario-analyst,evaluator
+lane.pesquisa.panes=1
+lane.pesquisa.kind=agy
+lane.pesquisa.model=gemini
+lane.pesquisa.effort=high
 
-role.debater.kind=claude
-role.debater.model=claude-sonnet-5-5
+lane.criacao.roles=content-creator
+lane.criacao.panes=1
+lane.criacao.kind=agy
+lane.criacao.model=gemini
+lane.criacao.effort=high
 
-role.evaluator.kind=claude
-role.evaluator.model=claude-sonnet-5-5
+lane.revisao.roles=reviewer
+lane.revisao.panes=1
+lane.revisao.kind=claude
+lane.revisao.model=claude-sonnet-5-5
+lane.revisao.effort=high
 
-split_max_panes=4
-layout=split
-regrid=on
-worker_context=lean
+# Exemplo para trocar o criador para Claude Opus — aí o revisor TEM de sair
+# da família anthropic (agy/Gemini, codex ou grok), senão o dispatch falha:
+#   lane.criacao.kind=claude
+#   lane.criacao.model=opus
+#   lane.revisao.kind=agy
+#   lane.revisao.model=gemini
+
+# ---------------------------------------------------------------------------
+# Time e estado
+# ---------------------------------------------------------------------------
+
+# Nome do agente que roda a skill (o professor), no sidebar do Herdr.
+orchestrator_name=professor
+
+# Estado do time (briefs, relatórios, roster), separado do .herdr-soho/.
+# Fica na raiz do repositório de estudos; adicione ao .gitignore.
+state_dir=.herdr-teacher
+
+# Os workers escrevem relatórios em português.
+report_language=pt-BR
+
+# Material didático costuma levar mais tempo que um patch de código (30 min).
+dispatch_timeout=1800000
+
+# ---------------------------------------------------------------------------
+# Professor (chaves teacher.*: lidas pelo professor e pelo wrapper)
+# ---------------------------------------------------------------------------
+
+# Pasta raiz do material, relativa à raiz do repositório de estudos.
+teacher.material_dir=aulas
+
+# Rodadas criador→revisor antes de o professor parar e falar com o aluno.
+teacher.max_review_rounds=2
+
+# Nome da lane do revisor (o wrapper usa no guard de segregação).
+teacher.review_lane=revisao
+
+# Formato de slides: marp | html
+teacher.slides=marp

@@ -1,0 +1,4 @@
+interface:
+  display_name: "herdr-teacher"
+  short_description: "Professor particular multiagente (pesquisa, criação, revisão adversária) no Herdr"
+  default_prompt: "Inside Herdr, act as the professor: diagnose the student's level from zero, spawn the researcher, content-creator and an isolated reviewer from another model family through scripts/herdr-teacher, dispatch self-contained briefs, accept material only after the reviewer's pass with the failure-admission sentence, then teach, give exercises and track progress."
