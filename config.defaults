@@ -1,0 +1,30 @@
+# herdr-teacher — config padrão da skill
+# Segregação estrita: o reviewer roda em família diferente (claude) dos workers criadores/pesquisadores (agy)
+
+role.content-creator.kind=agy
+role.content-creator.model=gemini
+role.content-creator.effort=high
+
+role.researcher.kind=agy
+role.researcher.model=gemini
+role.researcher.effort=high
+
+role.scenario-analyst.kind=agy
+role.scenario-analyst.model=gemini
+role.scenario-analyst.effort=high
+
+# Reviewer independente: NUNCA divide processo com content-creator nem researcher
+role.reviewer.kind=claude
+role.reviewer.model=claude-sonnet-5-5
+role.reviewer.effort=high
+
+role.debater.kind=claude
+role.debater.model=claude-sonnet-5-5
+
+role.evaluator.kind=claude
+role.evaluator.model=claude-sonnet-5-5
+
+split_max_panes=4
+layout=split
+regrid=on
+worker_context=lean
